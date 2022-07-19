@@ -1,0 +1,19 @@
+- name: Install Hyper-V sub features and management tools
+  win_feature:
+    name: Hyper-V
+    state: present
+    include_sub_features: yes
+    include_management_tools: yes
+
+- name: set routes to releases.hashicorp.com
+  ansible.builtin.include_role:
+    name: set-routes-via-external-gateway
+  vars:
+    lookup_hostname: releases.hashicorp.com
+  when: external_gateway is defined
+
+- name: install vagrant
+  win_chocolatey:
+    name: vagrant
+    version: '2.2.19'
+    state: present

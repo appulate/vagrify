@@ -1,0 +1,13 @@
+- name: get ip address
+  register: ip_address
+  win_shell: ((ping -n 1 {{ lookup_hostname }} | findstr "statistics for" | Select-String -Pattern "\d{1,3}(\.\d{1,3}){3}" -AllMatches).Matches.Value).Trim()
+
+- debug: msg="route to {{ip_address.stdout_lines[0]}} will be added via {{ external_gateway }}"
+  when: ip_address.stdout is defined
+
+- name: add route to {{ lookup_hostname }}
+  community.windows.win_route:
+    destination: "{{ ip_address.stdout_lines[0] }}/32"
+    gateway: "{{ external_gateway }}"
+    metric: 1
+    state: present

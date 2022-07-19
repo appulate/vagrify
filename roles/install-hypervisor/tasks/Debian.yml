@@ -1,0 +1,44 @@
+---
+- name: set routes to apt.releases.hashicorp.com
+  ansible.builtin.include_role:
+    name: set-routes-via-external-gateway
+  vars:
+    lookup_hostname: apt.releases.hashicorp.com
+  when: external_gateway is defined
+
+- name: add vagrant key
+  shell: curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+  become: true
+
+- name: add vagrant repository
+  shell: apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+  become: true
+
+- name: install packages
+  apt:
+    name: "{{ packages }}"
+    state: present
+    update_cache: yes
+  become: true
+  vars:
+    packages:
+    - vagrant
+    - qemu-kvm 
+    - libvirt-daemon-system 
+    - libvirt-clients 
+    - bridge-utils 
+    - virtinst 
+    - virt-manager
+    - libxslt-dev 
+    - libxml2-dev 
+    - libvirt-dev 
+    - zlib1g-dev 
+    - ruby-dev
+    - ansible
+
+- shell: "vagrant plugin list"
+  register: vagrant_plugins 
+
+- name: install vagrant-libvirt
+  shell: "vagrant plugin install vagrant-libvirt"
+  when: vagrant_plugins.stdout is not search('vagrant-libvirt')

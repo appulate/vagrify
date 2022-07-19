@@ -1,0 +1,5 @@
+- name: install and configure
+  include: subtasks/Debian.yml vm={{item}}
+  with_items:
+    - "{{ vms }}"
+  when: vms is defined

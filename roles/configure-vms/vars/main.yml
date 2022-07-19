@@ -1,0 +1,4 @@
+---
+vagrantVmsRootPathWindows: "d:\\vagrant"
+vagrantVmsRootPathLinux: "/srv/vagrant"
+vagrantBinWindows: C:\\HashiCorp\\Vagrant\\bin\\vagrant.exe

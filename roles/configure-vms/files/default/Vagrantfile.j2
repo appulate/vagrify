@@ -1,0 +1,26 @@
+ENV['VAGRANT_DEFAULT_PROVIDER'] = '{{ vagrant_default_provider }}'
+ansible_password =  ENV["ANSIBLE_PASSWORD"] || ""
+
+Vagrant.configure("2") do |config|
+  config.vm.define "{{ vmname }}" do |config|
+    config.vm.box = "{{ vmbox }}"
+    config.vm.hostname = "{{ vmname }}"
+    config.vm.network "public_network", dev: "{{ vmbridge }}", bridge: "{{ vmbridge }}"
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+    
+    config.vm.provider "hyperv" do |hyperv|
+      hyperv.vmname = "{{ vmname }}"
+      hyperv.memory = "{{ vmmemory }}"
+      hyperv.maxmemory = "{{ vmmemory }}"
+      hyperv.cpus = {{ vmcpus }}
+      hyperv.linked_clone = true
+    end
+
+    config.vm.provider "libvirt" do |libvirt|
+      libvirt.memory = "{{ vmmemory }}"
+      libvirt.cpus = {{ vmcpus }}
+    end
+
+    config.vm.provision "shell", path: "scripts/postinstall.sh", env: {"ANSIBLE_PASSWORD" => ansible_password}
+  end
+end

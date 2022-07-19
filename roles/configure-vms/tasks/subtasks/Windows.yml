@@ -1,0 +1,101 @@
+- block:
+  - name: create a directory {{ vagrantVmsRootPathWindows }}\{{ vm.vmname }}
+    win_file:
+      path: "{{ vagrantVmsRootPathWindows }}\\{{ vm.vmname }}"
+      state: directory
+
+  - name: copy vagrant file
+    win_template: 
+      src: "files//{{ vm.vmfiles }}/Vagrantfile.j2"
+      dest: "{{ vagrantVmsRootPathWindows }}\\{{ vm.vmname }}\\Vagrantfile"
+    vars:
+      vmbox: "{{ vm.vmbox }}"
+      vmname: "{{ vm.vmname }}"
+      vmmemory: "{{ vm.vmmemory }}"
+      vmcpus: "{{ vm.vmcpus }}"
+      vmbridge: "{{ vm.vmbridge }}"
+    register: vagrantfile
+
+  - name: copy scripts folder
+    win_copy:
+      src: "files/{{ vm.vmfiles }}/scripts"
+      dest: "{{ vagrantVmsRootPathWindows }}\\{{ vm.vmname }}"
+    register: scripts
+
+  - name: set routes to vagrantcloud.com
+    ansible.builtin.include_role:
+      name: set-routes-via-external-gateway
+    vars:
+      lookup_hostname: vagrantcloud.com
+    when: external_gateway is defined
+
+    # do not start or reload automatically vm if status == poweroff
+  - name: get vm status
+    ansible.windows.win_powershell: 
+      script: |
+        try {
+            Set-Location -Path {{ vagrantVmsRootPathWindows }}\\{{ vm.vmname }} -PassThru
+            {{ vagrantBinWindows }} status --machine-readable
+        }
+        catch {
+          Write-Error "$_"
+          throw
+        }
+    register: vagrant_status
+    #failed_when: '"error" in vagrant_status.host_out'
+
+  - debug: msg="{{vagrant_status.output}}"
+    when: vagrant_status.output is defined
+
+  - name: start virtual machine
+    ansible.windows.win_powershell: 
+      script: |
+        try {
+          $env:ANSIBLE_PASSWORD = '{{ ansible_ssh_pass }}'
+          Set-Location -Path {{ vagrantVmsRootPathWindows }}\\{{ vm.vmname }} -PassThru
+          {{ vagrantBinWindows }} up --machine-readable
+        }
+        catch {
+          Write-Error "$_"
+          throw
+        }
+    register: vagrant_up_command
+    when: "(vagrant_status.output is search('state,not_created')) or ((vm.force_reload | default('false')) is true)"
+
+  - debug: msg="{{vagrant_up_command.output}}"
+    when: vagrant_up_command.output is defined
+
+  - name: reload virtual machine
+    ansible.windows.win_powershell: 
+      script: |
+        try {
+          Set-Location -Path {{ vagrantVmsRootPathWindows }}\\{{ vm.vmname }} -PassThru
+          {{ vagrantBinWindows }} reload --machine-readable
+        }
+        catch {
+          Write-Error "$_"
+          throw
+        }
+    register: vagrant_reload_command
+    when: "(vagrant_status.output is search('state,running')) and (vagrantfile.changed or (vm.force_reload | default('false') is true))"
+  
+  - debug: msg="{{vagrant_reload_command.output}}"
+    when: vagrant_reload_command.output is defined
+
+  - name: provision virtual machine
+    ansible.windows.win_powershell: 
+      script: |
+        try {
+            $env:ANSIBLE_PASSWORD = '{{ ansible_ssh_pass }}'
+            Set-Location -Path {{ vagrantVmsRootPathWindows }}\\{{ vm.vmname }} -PassThru
+            {{ vagrantBinWindows }} provision --machine-readable
+        }
+        catch {
+          Write-Error "$_"
+          throw
+        }
+    when: vagrant_status.output is search('state,running') and scripts.changed
+    register: vagrant_provision
+    
+  - debug: msg="{{vagrant_provision.output}}"
+    when: vagrant_provision.output is defined

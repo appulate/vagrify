@@ -1,0 +1,3 @@
+---
+vagrant_default_provider: libvirt
+vagrant_default_bridge: "eno1"

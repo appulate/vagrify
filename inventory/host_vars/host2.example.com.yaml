@@ -1,0 +1,7 @@
+vms:
+  - { vmname: vm3.example.com,
+      vmmemory: 4096,
+      vmcpus: 2,
+      vmbridge: "{{ vagrant_default_bridge }}",
+      vmfiles: "default",
+      vmbox: "generic/ubuntu2010" }

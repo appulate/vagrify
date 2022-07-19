@@ -1,0 +1,77 @@
+---
+  - name: create a directory {{ vagrantVmsRootPathLinux }}/{{ vm.vmname }}
+    ansible.builtin.file:
+      path: "{{ vagrantVmsRootPathLinux }}/{{ vm.vmname }}"
+      state: directory
+      mode: '0775'
+      group: ansible
+    become: yes
+
+  - name: copy vagrant file
+    template: 
+      src: "files/{{ vm.vmfiles }}/Vagrantfile.j2"
+      dest: "{{ vagrantVmsRootPathLinux }}/{{ vm.vmname }}/Vagrantfile"
+    vars:
+      vmbox: "{{ vm.vmbox }}"
+      vmname: "{{ vm.vmname }}"
+      vmmemory: "{{ vm.vmmemory }}"
+      vmcpus: "{{ vm.vmcpus }}"
+      vmbridge: "{{ vm.vmbridge }}"
+    register: vagrantfile
+
+  - name: copy scripts folder
+    ansible.builtin.copy:
+      src: "files/{{ vm.vmfiles }}/scripts"
+      dest: "{{ vagrantVmsRootPathLinux }}/{{ vm.vmname }}"
+    register: scripts
+
+  # do not start or reload automatically vm if status == poweroff
+  - name: get vm status
+    shell: vagrant status --machine-readable
+    register: vagrant_status
+    args:
+      chdir: "{{ vagrantVmsRootPathLinux }}/{{ vm.vmname }}"
+
+  - debug: msg="{{vagrant_status.stdout}}"
+    when: vagrant_status.stdout is defined
+
+  - name: set routes to vagrantcloud.com
+    ansible.builtin.include_role:
+      name: set-routes-via-external-gateway
+    vars:
+      lookup_hostname: vagrantcloud.com
+    when: external_gateway is defined
+
+  - name: start virtual machine
+    shell: vagrant up --machine-readable
+    when: "(vagrant_status.stdout is search('state,not_created')) or ((vm.force_reload | default('false')) is true)"
+    register: vagrant_up_command
+    args:
+      chdir: "{{ vagrantVmsRootPathLinux }}/{{ vm.vmname }}"
+    environment:
+      ANSIBLE_PASSWORD: "{{ ansible_ssh_pass }}"
+
+  - debug: msg="{{vagrant_up_command.stdout}}"
+    when: vagrant_up_command.stdout is defined
+
+  - name: reload virtual machine
+    shell: vagrant reload --machine-readable
+    when: "(vagrant_status.stdout is search('state,running')) and (vagrantfile.changed or (vm.force_reload | default('false') is true))"
+    register: vagrant_up_or_reload_command
+    args:
+      chdir: "{{ vagrantVmsRootPathLinux }}/{{ vm.vmname }}"
+    
+  - debug: msg="{{vagrant_reload_command.stdout}}"
+    when: vagrant_reload_command.stdout is defined
+
+  - name: provision virtual machine
+    shell: vagrant provision
+    when: vagrant_status.stdout is search('state,running') and scripts.changed
+    register: vagrant_provision
+    args:
+      chdir: "{{ vagrantVmsRootPathLinux }}/{{ vm.vmname }}"
+    environment:
+      ANSIBLE_PASSWORD: "{{ ansible_ssh_pass }}"
+    
+  - debug: msg="{{vagrant_provision.stdout}}"
+    when: vagrant_provision.stdout is defined

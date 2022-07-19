@@ -1,0 +1,4 @@
+---
+ansible_shell_type: powershell
+vagrant_default_provider: hyperv
+vagrant_default_bridge: "External Switch"

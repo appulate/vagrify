@@ -1,0 +1,8 @@
+--- 
+- name: Configure Virtual Machines for baremetal_servers group
+  hosts: baremetal_servers
+  roles: 
+    - role: roles/install-hypervisor
+      tags: install-hypervisor
+    - role: roles/configure-vms
+      tags: configure-vms

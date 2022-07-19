@@ -1,0 +1,11 @@
+- name: get ip address
+  shell: 
+    cmd: ping -c1 {{ lookup_hostname }} | sed -nE 's/^PING[^(]+\(([^)]+)\).*/\1/p'
+  register: ip_address
+
+- debug: msg="route to {{ip_address.stdout}} will be added via {{ external_gateway }}"
+  when: vagrant_status.stdout is defined
+
+- name: configure static route
+  shell: "ip route replace {{ ip_address.stdout }}/32 via {{ external_gateway }}"
+  become: yes
