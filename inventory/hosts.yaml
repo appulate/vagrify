@@ -5,7 +5,7 @@ all:
         host1.example.com:
     linux:
       hosts:
-        host1.example.com:
+        host2.example.com:
     baremetal_servers:
       hosts:
         host1.example.com:
